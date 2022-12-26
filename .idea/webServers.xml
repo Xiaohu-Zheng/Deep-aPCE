@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="3261d96f-9b43-4da2-88a2-453846fbe222" name="V100-2" url="http://10.10.10.25">
+        <fileTransfer host="10.10.10.25" port="22" rootFolder="/mnt/jfs/zhengxiaohu/GitHub" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
