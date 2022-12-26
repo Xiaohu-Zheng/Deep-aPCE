@@ -323,70 +323,6 @@ def prediction_for_Deep_PCE_regression(num, x, net, order, order_mat, pc, p_orde
     return mean.view(-1, 1), std.view(-1, 1), c_mean.view(1, -1)
 
 
-class Predict_PCNN_regression():
-    def __init__(self, net, order, order_mat, order_pc, order_mat_pc, pc_pcnn='apc', pc_dpce='apc', p_orders=None):
-        super(Predict_PCNN_regression, self).__init__()
-        self.net = net
-        self.order_mat_pc = order_mat_pc
-        self.order_pc = order_pc
-        self.order_mat = order_mat
-        self.order = order
-        self.p_orders = p_orders
-        self.pc_pcnn = pc_pcnn
-        self.pc_dpce = pc_dpce
-
-    def prediction(self, x_pred, num_batch, sparse_basis_dpce=None, sparse_basis=None, norm_factor_dpce=None, norm_factor_pcnn=None):
-        dim = x_pred.size(1)
-        x_pred = torch.chunk(x_pred, num_batch)
-        for i in range(len(x_pred)):
-            print(i,'/',len(x_pred))
-            x_input = x_pred[i]
-            x_input_pcnn = x_input[:, 0:int(dim/2)]
-            x_input_dpce = x_input[:, int(dim/2):dim]
-            phi_x_pre = orthogonal_basis(x_input_pcnn, self.order_pc, self.order_mat_pc, self.pc_pcnn, self.p_orders, x_input_pcnn.size(0), sparse_basis, norm_factor_pcnn)
-            with torch.no_grad():
-                c_nn_pre, y_pcnn_pre = self.net(x_input_dpce, phi_x_pre)
-                y_dpce_pre = deep_pce_fun(x_input_dpce, c_nn_pre, self.order, self.order_mat, self.pc_dpce, self.p_orders, sparse_basis_dpce, norm_factor_dpce)
-            if i == 0:
-                Y_dpce_pre = y_dpce_pre
-                Y_pcnn_pre = y_pcnn_pre
-            else:
-                Y_dpce_pre = torch.cat((Y_dpce_pre, y_dpce_pre), dim=0)
-                Y_pcnn_pre = torch.cat((Y_pcnn_pre, y_pcnn_pre), dim=0)
-
-        return Y_pcnn_pre, Y_dpce_pre
-
-
-class Predict_MCQR_PCNN_regression():
-    def __init__(self, net, order_dpce, order_mat_dpce, pc_dpce='apc', p_orders_dpce=None):
-        super(Predict_MCQR_PCNN_regression, self).__init__()
-        self.net = net
-        self.order_mat_dpce = order_mat_dpce
-        self.order_dpce = order_dpce
-        self.p_orders_dpce = p_orders_dpce
-        self.pc_dpce = pc_dpce
-
-    def prediction(self, x_pred, num_batch, sparse_basis_dpce=None, norm_factor_dpce=None):
-        x_pred = torch.chunk(x_pred, num_batch)
-        for i in range(len(x_pred)):
-            # print(i,'/',len(x_pred))
-            x_input = x_pred[i]
-            taus = torch.rand(x_input.size(0), 1).to(x_input.device)
-            x_input_taus = torch.cat((x_input, taus), 1)
-            with torch.no_grad():
-                c_nn_pre, y_pcnn_pre = self.net(x_input_taus)
-                y_dpce_pre = deep_pce_fun(x_input, c_nn_pre, self.order_dpce, self.order_mat_dpce, 
-                                          self.pc_dpce, self.p_orders_dpce, sparse_basis_dpce, norm_factor_dpce)
-            if i == 0:
-                Y_dpce_pre = y_dpce_pre
-                Y_pcnn_pre = y_pcnn_pre
-            else:
-                Y_dpce_pre = torch.cat((Y_dpce_pre, y_dpce_pre), dim=0)
-                Y_pcnn_pre = torch.cat((Y_pcnn_pre, y_pcnn_pre), dim=0)
-
-        return Y_pcnn_pre, Y_dpce_pre
-
-
 class Predict_Deep_PCE_regression():
     def __init__(self, net, order, order_mat, pc='apc', p_orders=None):
         super(Predict_Deep_PCE_regression, self).__init__()
@@ -405,67 +341,6 @@ class Predict_Deep_PCE_regression():
                 c_nn_pre = self.net(x_input)
                 y_dpce_pre = deep_pce_fun(x_input, c_nn_pre, self.order, self.order_mat, 
                                           self.pc, self.p_orders, sparse_basis, norm_factor)
-            if i == 0:
-                Y_dpce_pre = y_dpce_pre
-            else:
-                Y_dpce_pre = torch.cat((Y_dpce_pre, y_dpce_pre), dim=0)
-
-        return Y_dpce_pre
-
-class Predict_MCQR_PCE_regression():
-    def __init__(self, net, order, order_mat, pc='apc', p_orders=None):
-        super(Predict_MCQR_PCE_regression, self).__init__()
-        self.net = net
-        self.order_mat = order_mat
-        self.order = order
-        self.p_orders = p_orders
-        self.pc = pc
-
-    def prediction(self, x_pred, num_batch, norm_factor=None, sparse_basis=None):
-        x_pred = torch.chunk(x_pred, num_batch)
-        for i in range(len(x_pred)):
-            # print(i,'/',len(x_pred))
-            x_input = x_pred[i]
-            with torch.no_grad():
-                c_nn_pre = self.net(x_input)
-            y_dpce_pre = deep_pce_fun(x_input[:,0:-1], c_nn_pre, self.order, self.order_mat, 
-                                        self.pc, self.p_orders, sparse_basis, norm_factor)
-            if i == 0:
-                Y_dpce_pre = y_dpce_pre
-            else:
-                Y_dpce_pre = torch.cat((Y_dpce_pre, y_dpce_pre), dim=0)
-
-        return Y_dpce_pre
-
-
-class Predict_MCQR_Multi_PCE_regression():
-    def __init__(self, net, order, order_mat, pc='apc', p_orders=None):
-        super(Predict_MCQR_Multi_PCE_regression, self).__init__()
-        self.net = net
-        self.order_mat = order_mat
-        self.order = order
-        self.p_orders = p_orders
-        self.pc = pc
-
-    def prediction(self, x_pred, num_c, num_batch, norm_factor=None, sparse_basis_all=None):
-        x_pred = torch.chunk(x_pred, num_batch)
-        for i in range(len(x_pred)):
-            # print(i,'/',len(x_pred))
-            x_input = x_pred[i]
-            with torch.no_grad():
-                c_nn_pre = self.net(x_input)
-            num_c_j_start = 0
-            for j in range(len(num_c)):
-                num_c_j = num_c[j]
-                c_nn_pre_j = c_nn_pre[:, num_c_j_start:(num_c_j_start+num_c_j)]
-                sparse_basis_j = sparse_basis_all[j]
-                y_dpce_pre_j = deep_pce_fun(x_input[:,0:-1], c_nn_pre_j, self.order, self.order_mat, 
-                                        self.pc, self.p_orders, sparse_basis_j, norm_factor)
-                num_c_j_start += num_c_j
-                if j ==0 :
-                    y_dpce_pre = y_dpce_pre_j
-                else:
-                    y_dpce_pre = torch.cat((y_dpce_pre, y_dpce_pre_j), dim=1)
             if i == 0:
                 Y_dpce_pre = y_dpce_pre
             else:
