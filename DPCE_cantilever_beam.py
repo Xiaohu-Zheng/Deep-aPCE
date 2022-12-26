@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from torch.autograd import Variable
 
-sys.path.append('/mnt/jfs/zhengxiaohu/Deep_aPCE')
+sys.path.append('/mnt/jfs/zhengxiaohu/GitHub/Deep-aPCE')
 from src.models import DNN
 import src.Deep_PCE as dPC
 import src.data_process as dp
@@ -29,14 +29,14 @@ else:
 # device = torch.device('cpu')
 print(os.getpid())
 
-root_path = "/mnt/jfs/zhengxiaohu/Deep_aPCE/cantilever_beam/"
-data_path = '/mnt/jfs/zhengxiaohu/Deep_aPCE/cantilever_beam/data/'
+root_path = "/mnt/jfs/zhengxiaohu/GitHub/Deep-aPCE/"
+data_path = '/mnt/jfs/zhengxiaohu/GitHub/Deep-aPCE/data/'
 
-# 目标函数
-lam = 40 # 3(90, 6000, temp=False) 3(40, 6000, temp=False)
+# Basic parameter
+lam = 40 
 model = 2
-# train = True
-train = False
+train = True
+# train = False
 # temp = True
 temp = False
 pc_dpce='apc'
@@ -48,7 +48,7 @@ x_coeff_batch_size = 20000
 max_epoch = 7000
 object_fun = f"DPCE_{order}order_cantilever_{x_num}data_model_{model}_lam{lam}"
 
-# 参数
+# Parameters
 m_I = 5.3594e+08
 sigma_I= 5.3594e+07
 
@@ -75,7 +75,7 @@ std = torch.tensor([[sigma_q, sigma_F1, sigma_F2, sigma_E, sigma_I,
                      sigma_L, sigma_delta]])
 
 if train:
-    # 准备有标签数据
+    # Prepare training data
     data = data_path + 'samples_{}.mat'.format(x_num)
     data = sio.loadmat(data)
     X_train = torch.from_numpy(data['X']).float()
@@ -83,19 +83,20 @@ if train:
     y_train = cantilever_fun(X_train)
     dataset = dp.TensorDataset(x_train, y_train)
 
-    # 加载训练数据
+    # Loading training data
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=50000,
                                             shuffle=True, num_workers=2)
 
-    # 准备无标签数据
-    num_coeff = int(1e+06)
+    # Prepare unlabeled data
+    # Determine the number of unlabeled data according to the studied problem.
+    num_coeff = int(1e+04)
     data_coeff = data_path + f'samples_{num_coeff}.mat'
     data_coeff = sio.loadmat(data_coeff)
     X_coeff = torch.from_numpy(data_coeff['X']).float()
     x_coeff = (X_coeff - mean) / std
 
-    # 准备测试数据集
-    num_test = 10000
+    # Prepare testing data
+    num_test = 1000
     data_test = data_path + 'samples_{}.mat'.format(num_test)
     data_test = sio.loadmat(data_test)
     X_test = torch.from_numpy(data_test['X']).float()
@@ -103,44 +104,44 @@ if train:
     y_test = cantilever_fun(X_test)
 
 
-# 计算k阶中心矩
+# Calculate K-order moment
 mu_k_rooth = root_path + 'mu_ks/mu_k.mat'
 mu_k_temp = sio.loadmat(mu_k_rooth)
 mu_k = torch.from_numpy(mu_k_temp['mu_k']).float()
 p_orders = dPC.all_orders_univariate_basis_coefficients(mu_k, order)
 norm_factor_dpce = dPC.norm_factor_basis(order, mu_k, p_orders)
 
-# 初始化模型
+# Initialize model
 order_mat = dPC.order_mat_fun(dim, order)
 num_c = order_mat.size(0)
 
 if model == 0:
-    # 模型-1：
+    # model-1：
     hiden_neurons = [64, 128, 64]
 if model == 5:
-    # 模型-1：
+    # model-1：
     hiden_neurons = [64, 128, 128]
 elif model == 1:
-    # 模型-2：
+    # model-2：
     hiden_neurons = [64, 128, 128, 64]
 elif model == 2:
-    # 模型-3：
+    # model-3：
     hiden_neurons = [64, 128, 256, 256, 256]
 elif model == 3:
-    # 模型-4：
+    # model-4：
     hiden_neurons = [64, 128, 256, 128, 64]
 elif model == 4:
-    # 模型-4：
+    # model-4：
     hiden_neurons = [64, 128, 256, 256, 256, 128]
 net_c = DNN(dim, num_c, hiden_neurons)
 
-# 定义优化器
+# Defining optimizer
 net_c = net_c.to(device)
 criterion_pce_loss = CalculatePCELoss(order, order_mat, pc_dpce, p_orders, norm_factor=norm_factor_dpce)
 criterion_coeff_deep = CoefficientPCELoss(lam_mean=lam, lam_var=lam)
 optimizer_c = optim.Adam(net_c.parameters(), lr=lr_c)
 
-# 训练模型
+# Training model
 test_acc_best = 1.0
 if train:
     print("training on ", device)
@@ -152,11 +153,11 @@ if train:
 
         train_l_fea_sum, train_l_c_sum, train_acc_sum, batch_count, start = 0.0, 0.0, 0.0, 0, time.time()
         for i, data in enumerate(dataloader, 0):
-            # 获得输入
+            # Obtain input
             x, y = data
             x, y = x.to(device), y.to(device)
             
-            # 梯度归零
+            # Gradient return to zero
             optimizer_c.zero_grad()
 
             # net_c forward + backward + optimize
@@ -189,12 +190,12 @@ if train:
 
 #     print('order={}, dim={}, Trainning over!'.format(order, dim))
 
-#     # 保存训练的模型
+#     # Save the trained model
 #     if not os.path.exists(root_path + 'trained_models'):
 #         os.makedirs(root_path + 'trained_models')
 #     torch.save(net_c.state_dict(), root_path + f'trained_models/{object_fun}_{max_epoch}.pth')
 
-# 模型预测
+# Model prediction
 if temp == True:
     net_c.load_state_dict(torch.load(root_path + f'trained_models/{object_fun}_{max_epoch}_temp.pth',
         map_location='cuda:0'))
@@ -202,7 +203,7 @@ else:
     net_c.load_state_dict(torch.load(root_path + f'trained_models/{object_fun}_{max_epoch}.pth',
     map_location='cuda:0'))
 
-num_pre = int(1e7)
+num_pre = int(1e4)
 pre_batch_size = 5000000
 num_batch = math.ceil(num_pre/pre_batch_size)
 
